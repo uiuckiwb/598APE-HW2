@@ -1,5 +1,5 @@
 CXX := g++
-CXXFLAGS := -std=c++17 -O3 -Wall -Wextra -I include -I. -fopenmp -flto 
+CXXFLAGS := -std=c++17 -O3 -march=native -Wall -Wextra -I include -I. -fopenmp -fno-math-errno -flto -fno-plt -fopt-info-vec-missed
 
 # Directories
 SRC_DIR := src
@@ -32,7 +32,7 @@ $(OBJ_DIR)/%.o: $(SRC_DIR)/%.cpp
 # build benchmark lib 
 $(BENCH_BIN): $(BENCH_SRC) $(OBJS)
 	@echo "Building benchmark program..."
-	@$(CXX) $(CXXFLAGS) $< $(OBJS) -o $@ 
+	@$(CXX) $(CXXFLAGS) $< $(OBJS) -o $@ -lmvec
 
 # Clean build files
 clean:

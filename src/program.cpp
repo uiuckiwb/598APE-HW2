@@ -11,6 +11,7 @@
 #include <program.h>
 #include <random>
 #include <stack>
+#include <cstring>
 
 namespace genetic {
 
@@ -18,6 +19,8 @@ namespace genetic {
  * Execution kernel for a single program. We assume that the input data
  * is stored in column major format.
  */
+//WE VECTORIZING BAYBEE VROOOOOOOOOM
+/*
 template <int MaxSize = MAX_STACK_SIZE>
 void execute_kernel(const program_t d_progs, const float *data, float *y_pred,
                     const uint64_t n_rows, const uint64_t n_progs) {
@@ -52,6 +55,58 @@ void execute_kernel(const program_t d_progs, const float *data, float *y_pred,
       y_pred[pid * n_rows + row_id] = eval_stack.pop();
     }
   }
+}
+*/
+
+
+
+template <int MaxSize = MAX_STACK_SIZE>
+void execute_kernel(const program_t d_progs, const float *data, float *y_pred,
+                    const uint64_t n_rows, const uint64_t n_progs) {
+  constexpr uint64_t TILE = 1024;
+  #pragma omp parallel num_threads(4)
+  {
+  std::vector<float> scratch(MaxSize * TILE);
+  float *slot[MaxSize];
+  for (int s = 0; s < MaxSize; ++s) slot[s] = scratch.data() + s * TILE;
+
+  #pragma omp parallel for collapse(2) schedule(static) 
+  for (uint64_t pid = 0; pid < n_progs; ++pid) {
+    for (uint64_t tile_id = 0; tile_id < n_rows; tile_id += TILE) {
+
+      program_t curr_p = d_progs + pid; // Current program
+
+      int end = curr_p->len - 1;
+
+      float res = 0.0f;
+      float in[2] = {0.0f, 0.0f};
+      int stack_pointer = 0;
+      const int len = curr_p->len;
+      const uint64_t m = std::min(TILE, n_rows - tile_id);
+
+      for(int k = len-1; k >= 0; k--) {	
+	const node &curr_node = curr_p->nodes[k];
+	const float *a = nullptr;
+        const float *b = nullptr;
+
+        if (detail::is_nonterminal(curr_node.t)) {
+	  const int ar = detail::arity(curr_node.t);
+          a = slot[stack_pointer - 1];
+	  if (ar > 1) b = slot[stack_pointer - 2];
+	  stack_pointer -= ar;
+	}
+
+	float *dst = slot[stack_pointer];
+	stack_pointer++;
+
+	detail::evaluate_node_vec(curr_node, data, n_rows, tile_id, m, a, b, dst);
+
+      }
+      std::memcpy(&y_pred[pid * n_rows + tile_id], slot[0], m * sizeof(float));
+    }
+  }
+  }
+
 }
 
 

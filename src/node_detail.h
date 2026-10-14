@@ -113,5 +113,182 @@ inline float evaluate_node(const node &n, const float *data, const uint64_t stri
   }
 }
 
+
+inline void evaluate_node_vec(const node &n, const float *data, const uint64_t stride,
+			const uint64_t row0,
+			const uint64_t m, 
+			const float *a,
+			const float *b, 
+			float *dst) {
+  if (n.t == node::type::constant) {
+    const float v = n.u.val;
+    #pragma omp simd
+    for (uint64_t i = 0; i < m; ++i) dst[i] = v;
+    return;
+  } else if (n.t == node::type::variable) {
+    const float *col = data + (stride * n.u.fid) + row0;
+    #pragma omp simd
+    for (uint64_t i = 0; i < m; ++i) dst[i] = col[i];
+    return;
+  } else {
+    // note: keep the case statements in alphabetical order under each category
+    // of operators.
+    switch (n.t) {
+    // binary operators
+
+    case node::type::add:
+    #pragma omp simd
+    for (uint64_t i = 0; i < m; ++i) dst[i] = a[i] + b[i];
+    return;
+    case node::type::atan2:
+    #pragma omp simd
+    for (uint64_t i = 0; i < m; ++i) dst[i] = atan2f(a[i], b[i]);
+    return;
+    case node::type::div:
+    #pragma omp simd
+    for (uint64_t i = 0; i < m; ++i)
+      dst[i] = fabsf(b[i]) < MIN_VAL ? 1.0f : (a[i] / b[i]);
+    return;
+    case node::type::fdim:
+    #pragma omp simd
+    for (uint64_t i = 0; i < m; ++i) dst[i] = fdimf(a[i], b[i]);
+    return;
+    case node::type::gt:
+    #pragma omp simd
+    for (uint64_t i = 0; i < m; ++i) dst[i] = a[i] > b[i] ? 1.0f : 0.0f;
+    return;
+    case node::type::max:
+    #pragma omp simd
+    for (uint64_t i = 0; i < m; ++i) dst[i] = fmaxf(a[i], b[i]);
+    return;
+    case node::type::min:
+    #pragma omp simd
+    for (uint64_t i = 0; i < m; ++i) dst[i] = fminf(a[i], b[i]);
+    return;
+    case node::type::mul:
+    #pragma omp simd
+    for (uint64_t i = 0; i < m; ++i) dst[i] = a[i] * b[i];
+    return;
+    case node::type::pow:
+    #pragma omp simd
+    for (uint64_t i = 0; i < m; ++i) dst[i] = powf(a[i], b[i]);
+    return;
+    case node::type::sub:
+    #pragma omp simd
+    for (uint64_t i = 0; i < m; ++i) dst[i] = a[i] - b[i];
+    return;
+
+    // unary operators
+
+
+    case node::type::abs:
+    #pragma omp simd
+    for (uint64_t i = 0; i < m; ++i) dst[i] = fabsf(a[i]);
+    return;
+    case node::type::acos:
+    #pragma omp simd
+    for (uint64_t i = 0; i < m; ++i) dst[i] = acosf(a[i]);
+    return;
+    case node::type::acosh:
+    #pragma omp simd
+    for (uint64_t i = 0; i < m; ++i) dst[i] = acoshf(a[i]);
+    return;
+    case node::type::asin:
+    #pragma omp simd
+    for (uint64_t i = 0; i < m; ++i) dst[i] = asinf(a[i]);
+    return;
+    case node::type::asinh:
+    #pragma omp simd
+    for (uint64_t i = 0; i < m; ++i) dst[i] = asinhf(a[i]);
+    return;
+    case node::type::atan:
+    #pragma omp simd
+    for (uint64_t i = 0; i < m; ++i) dst[i] = atanf(a[i]);
+    return;
+    case node::type::atanh:
+    #pragma omp simd
+    for (uint64_t i = 0; i < m; ++i) dst[i] = atanhf(a[i]);
+    return;
+    case node::type::cbrt:
+    #pragma omp simd
+    for (uint64_t i = 0; i < m; ++i) dst[i] = cbrtf(a[i]);
+    return;
+    case node::type::cos:
+    #pragma omp simd
+    for (uint64_t i = 0; i < m; ++i) dst[i] = cosf(a[i]);
+    return;
+    case node::type::cosh:
+    #pragma omp simd
+    for (uint64_t i = 0; i < m; ++i) dst[i] = coshf(a[i]);
+    return;
+    case node::type::cube:
+    #pragma omp simd
+    for (uint64_t i = 0; i < m; ++i) dst[i] = a[i] * a[i] * a[i];
+    return;
+    case node::type::exp:
+    #pragma omp simd
+    for (uint64_t i = 0; i < m; ++i) dst[i] = expf(a[i]);
+    return;
+    case node::type::inv:
+    #pragma omp simd
+    for (uint64_t i = 0; i < m; ++i)
+      dst[i] = fabsf(a[i]) < MIN_VAL ? 0.0f : 1.0f / a[i];
+    return;
+    case node::type::log:
+    #pragma omp simd
+    for (uint64_t i = 0; i < m; ++i) {
+      const float av = fabsf(a[i]);
+      dst[i] = av < MIN_VAL ? 0.0f : logf(av);
+    }
+    return;
+    case node::type::neg:
+    #pragma omp simd
+    for (uint64_t i = 0; i < m; ++i) dst[i] = -a[i];
+    return;
+    case node::type::rcbrt:
+    #pragma omp simd
+    for (uint64_t i = 0; i < m; ++i) dst[i] = 1.0f / cbrtf(a[i]);
+    return;
+    case node::type::rsqrt:
+    #pragma omp simd
+    for (uint64_t i = 0; i < m; ++i) dst[i] = 1.0f / sqrtf(fabsf(a[i]));
+    return;
+    case node::type::sin:
+    #pragma omp simd
+    for (uint64_t i = 0; i < m; ++i) dst[i] = sinf(a[i]);
+    return;
+    case node::type::sinh:
+    #pragma omp simd
+    for (uint64_t i = 0; i < m; ++i) dst[i] = sinhf(a[i]);
+    return;
+    case node::type::sq:
+    #pragma omp simd
+    for (uint64_t i = 0; i < m; ++i) dst[i] = a[i] * a[i];
+    return;
+    case node::type::sqrt:
+    #pragma omp simd
+    for (uint64_t i = 0; i < m; ++i) dst[i] = sqrtf(fabsf(a[i]));
+    return;
+    case node::type::tan:
+    #pragma omp simd
+    for (uint64_t i = 0; i < m; ++i) dst[i] = tanf(a[i]);
+    return;
+    case node::type::tanh:
+    #pragma omp simd
+    for (uint64_t i = 0; i < m; ++i) dst[i] = tanhf(a[i]);
+    return;
+
+    // shouldn't reach here!
+    default:
+    #pragma omp simd
+    for (uint64_t i = 0; i < m; ++i) dst[i] = 0.f;
+    return;
+    };
+  }
+}
+
+
+
+
 } // namespace detail
 } // namespace genetic
