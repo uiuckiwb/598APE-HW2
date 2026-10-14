@@ -52,6 +52,8 @@ struct program {
   node *nodes;
   /** total number of nodes in this AST */
   int len;
+  // capacity = total number of allocated node slots
+  int capacity; 
   /** maximum depth of this AST */
   int depth;
   /** fitness score of current AST */

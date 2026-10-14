@@ -54,20 +54,26 @@ void execute_kernel(const program_t d_progs, const float *data, float *y_pred,
   }
 }
 
+
 program::program()
     : len(0), depth(0), raw_fitness_(0.0f), metric(metric_t::mse),
-      mut_type(mutation_t::none), nodes(nullptr) {}
+      mut_type(mutation_t::none), nodes(nullptr), capacity(0) {}
+
 
 program::~program() { delete[] nodes; }
 
 program::program(const program &src)
     : len(src.len), depth(src.depth), raw_fitness_(src.raw_fitness_),
-      metric(src.metric), mut_type(src.mut_type) {
+      metric(src.metric), mut_type(src.mut_type), capacity(src.len) {
   nodes = new node[len];
   std::copy(src.nodes, src.nodes + src.len, nodes);
 }
 
 program &program::operator=(const program &src) {
+  if (this == &src) {
+    return *this;
+  }
+
   len = src.len;
   depth = src.depth;
   raw_fitness_ = src.raw_fitness_;
@@ -75,8 +81,11 @@ program &program::operator=(const program &src) {
   mut_type = src.mut_type;
 
   // Copy nodes
-  delete[] nodes;
-  nodes = new node[len];
+  if (capacity < src.len) {
+    delete[] nodes;
+    nodes = new node[src.len];
+    capacity = src.len;
+  }
   std::copy(src.nodes, src.nodes + src.len, nodes);
 
   return *this;
@@ -262,7 +271,7 @@ void build_program(program &p_out, const param &params, PhiloxEngine &rng) {
   // Define data structures needed for tree
   std::stack<int> arity_stack;
   std::vector<node> nodelist;
-  nodelist.reserve(1 << (MAX_STACK_SIZE));
+  nodelist.reserve(1 << (8));
 
   // Specify Distributions with parameters
   uniform_int_distribution_custom<int> dist_function(
@@ -341,6 +350,7 @@ void build_program(program &p_out, const param &params, PhiloxEngine &rng) {
   std::copy(nodelist.begin(), nodelist.end(), p_out.nodes);
 
   p_out.len = nodelist.size();
+  p_out.capacity = p_out.len;
   p_out.metric = params.metric;
   p_out.raw_fitness_ = 0.0f;
 }
@@ -433,8 +443,11 @@ void crossover(const program &prog, const program &donor, program &p_out,
     // Evolve on current subspace
     p_out.len =
         (prog_start) + (donor_end - donor_start) + (prog.len - prog_end);
-    delete[] p_out.nodes;
-    p_out.nodes = new node[p_out.len];
+    if (p_out.capacity < p_out.len) {
+    	delete[] p_out.nodes;
+    	p_out.nodes = new node[p_out.len];
+    	p_out.capacity = p_out.len;
+    }
 
     // Copy slices using std::copy
     std::copy(prog.nodes, prog.nodes + prog_start, p_out.nodes);
@@ -477,6 +490,7 @@ void hoist_mutation(const program &prog, program &p_out, const param &params,
 
   p_out.len = (prog_start) + (sub_end - sub_start) + (prog.len - prog_end);
   p_out.nodes = new node[p_out.len];
+  p_out.capacity = p_out.len;
   p_out.metric = prog.metric;
 
   // Copy node slices using std::copy

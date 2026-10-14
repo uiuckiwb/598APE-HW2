@@ -38,10 +38,11 @@ void tournament_kernel(const std::vector<program> &progs, int *win_indices,
   PhiloxEngine gen(seed);
   uniform_int_distribution_custom<int> rng(0, n_progs - 1);
 
-  for (auto idx = 0; idx < n_tours; ++idx) {
-    int r;
-    r = rng(gen);
 
+  for (auto idx = 0; idx < n_tours; ++idx) {
+    
+    int r;
+    r = rng(gen);  
     // Define optima values
     int opt = r % n_progs;
     float opt_penalty = parsimony * progs[opt].len * (2 * criterion - 1);
@@ -452,7 +453,9 @@ void symFit(const float *input, const float *labels,
     ++params.num_epochs;
 
     // Update h_currprogs (deepcopy)
-    h_currprogs = h_nextprogs;
+    //h_currprogs = h_nextprogs;
+    std::swap(h_currprogs, h_nextprogs);
+
 
     // Update evolution history, depending on the low memory flag
     if (!params.low_memory || gen == 0) {
