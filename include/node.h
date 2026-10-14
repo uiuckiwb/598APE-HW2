@@ -110,7 +110,7 @@ struct node {
    *
    * @return current node reference
    */
-  node &operator=(const node &src);
+  //node &operator=(const node &src);
 
   /** whether the current is either a variable or a constant */
   bool is_terminal() const;
